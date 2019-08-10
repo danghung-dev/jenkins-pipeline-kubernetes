@@ -6,12 +6,12 @@ podTemplate(label: 'mypod', containers: [
     hostPathVolume(mountPath: '/var/run/docker.sock', hostPath: '/var/run/docker.sock'),
   ]) {
     node('mypod') {
-      state('test docker') {
+      stage('test docker') {
         container('docker') {
           sh "docker ps"
         }
       }
-      state('test kubectl') {
+      stage('test kubectl') {
         container('kubectl') {
           sh "kubectl get pods"
         }
