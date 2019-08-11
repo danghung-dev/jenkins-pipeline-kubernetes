@@ -1,7 +1,7 @@
 FROM node:10.15.3-alpine
 WORKDIR /usr/src/app
 
-COPY ./package.json ./yarn.lock ./
+COPY ./package1.json ./yarn.lock ./
 
 RUN npm i
 # Bundle app source

@@ -18,8 +18,13 @@ podTemplate(label: 'mypod', containers: [
             ).trim()
           }
           echo "docker: ${DOCKER_LOGIN}"
+          try {
           container('docker') {
             REGISTRY_URL="744004065806.dkr.ecr.ap-southeast-1.amazonaws.com/dev-bidding-service"
+            // sh "docker build --network=host -t ${REGISTRY_URL}:vtest --pull=true ."
+            // sh "docker tag ${REGISTRY_URL}:vtest ${REGISTRY_URL}:latest"
+            // sh "${DOCKER_LOGIN}"
+            // sh "docker push ${REGISTRY_URL}:vtest"
             sh """
             ls -la
             docker build --network=host -t ${REGISTRY_URL}:vtest --pull=true .
@@ -27,6 +32,10 @@ podTemplate(label: 'mypod', containers: [
             ${DOCKER_LOGIN}
             docker push ${REGISTRY_URL}:vtest
             """
+          }
+          } catch (e) {
+            echo 'docker build error' + e.toString()
+            currentBuild.currentResult = "FAILURE"
           }
         }
         stage('test kubectl') {
@@ -37,6 +46,9 @@ podTemplate(label: 'mypod', containers: [
         }
       } catch (exc) {
         echo 'I failed'
+        echo 'loi nguyen'
+        echo 'Err: Incremental Build failed with Error: ' + exc.toString()
+        echo 'loi message'
         echo exc.getMessage()
       }
       finally {
