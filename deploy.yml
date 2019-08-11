@@ -1,0 +1,50 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: hello-world
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: hello-world
+    spec:
+      containers:
+        - name: hello-world
+          image: 744004065806.dkr.ecr.ap-southeast-1.amazonaws.com/dev-bidding-service:vtest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-world
+  labels:
+    app: hello-world
+spec:
+  selector:
+    app: hello-world
+  ports:
+    - port: 3000
+      protocol: TCP
+      targetPort: 3000
+  type: ClusterIP
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: simple-fanout-example
+  annotations:
+    kubernetes.io/ingress.class: "traefik"
+spec:
+  rules:
+    - host: helloworld.danghung.xyz
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: hello-world
+              servicePort: 3000

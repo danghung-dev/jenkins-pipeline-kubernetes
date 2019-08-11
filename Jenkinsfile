@@ -7,6 +7,8 @@ podTemplate(label: 'mypod', containers: [
     hostPathVolume(mountPath: '/var/run/docker.sock', hostPath: '/var/run/docker.sock'),
   ]) {
     node('mypod') {
+      echo 'Getting source code...'
+		  checkout scm
       stage('test docker') {
         container('awscli') {
           DOCKER_LOGIN = sh (
@@ -17,13 +19,20 @@ podTemplate(label: 'mypod', containers: [
         }
         echo "docker: ${DOCKER_LOGIN}"
         container('docker') {
-          sh "docker ps"
-          sh "${DOCKER_LOGIN}"
+          REGISTRY_URL="744004065806.dkr.ecr.ap-southeast-1.amazonaws.com/dev-bidding-service"
+          sh """
+          ls -la
+          docker build --network=host -t ${REGISTRY_URL}:vtest --pull=true .
+          docker tag ${REGISTRY_URL}:vtest ${REGISTRY_URL}:latest
+          ${DOCKER_LOGIN}
+          docker push ${REGISTRY_URL}:vtest
+          """
         }
       }
       stage('test kubectl') {
         container('kubectl') {
-          sh "kubectl get pods"
+          // sh "ls -la"
+          sh "kubectl apply -f deploy.yml"
         }
       }
       stage('clean') {
