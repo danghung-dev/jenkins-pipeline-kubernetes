@@ -7,7 +7,7 @@ podTemplate(label: 'mypod', containers: [
     hostPathVolume(mountPath: '/var/run/docker.sock', hostPath: '/var/run/docker.sock'),
   ]) {
     node('mypod') {
-      try {
+      // try {
         echo 'Getting source code...'
         checkout scm
         stage('test docker') {
@@ -18,64 +18,67 @@ podTemplate(label: 'mypod', containers: [
             ).trim()
           }
           echo "docker: ${DOCKER_LOGIN}"
-          try {
           container('docker') {
             REGISTRY_URL="744004065806.dkr.ecr.ap-southeast-1.amazonaws.com/dev-bidding-service"
-            // sh "docker build --network=host -t ${REGISTRY_URL}:vtest --pull=true ."
-            // sh "docker tag ${REGISTRY_URL}:vtest ${REGISTRY_URL}:latest"
-            // sh "${DOCKER_LOGIN}"
-            // sh "docker push ${REGISTRY_URL}:vtest"
-            sh """
-            ls -la
-            docker build --network=host -t ${REGISTRY_URL}:vtest --pull=true .
-            docker tag ${REGISTRY_URL}:vtest ${REGISTRY_URL}:latest
-            ${DOCKER_LOGIN}
-            docker push ${REGISTRY_URL}:vtest
-            """
-          }
-          } catch (e) {
-            echo 'docker build error' + e.toString()
-            currentBuild.currentResult = "FAILURE"
+            DoCommandBuild = "docker build --network=host -t ${REGISTRY_URL}:vtest --pull=true . > result"
+            echo "docommandbuild: ${DoCommandBuild}"
+            DockerBuildStatus = sh (
+              script: DoCommandBuild,
+              returnStderr: true
+            )
+            if (DockerBuildStatus != 0) {
+              DockerBuildResult = readFile('result').trim()
+              echo "DockerbuildREsult: ${DockerBuildResult}"
+              currentBuild.result = "FAILURE"
+              messageResult = "Cannot build docker"
+              // throw new Exception("Build docker failed")            
+            } else {
+              sh "docker tag ${REGISTRY_URL}:vtest ${REGISTRY_URL}:latest"
+              sh "${DOCKER_LOGIN}"
+              sh "docker push ${REGISTRY_URL}:vtest"
+              // sh """
+              // ls -la
+              // docker build --network=host -t ${REGISTRY_URL}:vtest --pull=true .
+              // docker tag ${REGISTRY_URL}:vtest ${REGISTRY_URL}:latest
+              // ${DOCKER_LOGIN}
+              // docker push ${REGISTRY_URL}:vtest
+              // """
+            }
           }
         }
-        stage('test kubectl') {
-          container('kubectl') {
-            sh "kubectl apply -f deploy.yml"
-            sh "kubectl rollout status deployment hello-world"
+        if (currentBuild.result != "FAILURE") {
+          stage('test kubectl') {
+            container('kubectl') {
+              sh "kubectl apply -f deploy.yml"
+              sh "kubectl rollout status deployment hello-world"
+            }
           }
+          currentBuild.result = "SUCCESS"
         }
-      } catch (exc) {
-        echo 'I failed'
-        echo 'loi nguyen'
-        echo 'Err: Incremental Build failed with Error: ' + exc.toString()
-        echo 'loi message'
-        echo exc.getMessage()
-      }
-      finally {
+      // } catch (exc) {
+      //   echo 'I failed'
+      //   echo 'loi nguyen'
+      //   echo 'Err: Incremental Build failed with Error: ' + exc.toString()
+      //   echo 'loi message'
+      //   echo exc.getMessage()
+      //   currentBuild.result = "FAILURE"
+      //   messageResult = "Cannot build docker"
+      // }
+      // finally {
         echo 'One way or another, I have finished'
         deleteDir() /* clean up our workspace */
-        if (currentBuild.currentResult == 'SUCCESS') {
+        if (currentBuild.result == 'SUCCESS') {
           echo 'Build successful'
           slackSend channel: 'stx_log',
             color: 'good',
             message: "The pipeline ${currentBuild.fullDisplayName} completed successfully."
-        } else if (currentBuild.currentResult == 'FAILURE') {
+        } else if (currentBuild.result == 'FAILURE') {
           echo 'I failed :('
+          DockerBuildResult = readFile('result').trim()
           slackSend channel: 'stx_log',
             color: 'good',
-            message: "Attention @here ${env.JOB_NAME} #${env.BUILD_NUMBER} has failed."
+            message: "Attention @here ${env.JOB_NAME} #${env.BUILD_NUMBER} has failed. ${messageResult}. ${DockerBuildResult}"
         }
-        // success {
-        //   slackSend channel: 'stx_log',
-        //     color: 'good',
-        //     message: "The pipeline ${currentBuild.fullDisplayName} completed successfully."
-        // }
-        // failure {
-        //   echo 'I failed :('
-        //   slackSend channel: 'stx_log',
-        //     color: 'good',
-        //     message: "Attention @here ${env.JOB_NAME} #${env.BUILD_NUMBER} has failed."
-        // }
-      }
+      // }
     }
   }
