@@ -32,7 +32,7 @@ podTemplate(label: 'mypod', containers: [
           container('kubectl') {
             sh """
             kubectl apply -f deploy.yml
-            kubectl patch deployment hello-world -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"date\":\"`date +'%s'`\"}}}}}" -n jenkins
+            kubectl patch deployment hello-world -p "{"spec":{"template":{"metadata":{"labels":{"date":"`date +'%s'`"}}}}}" -n jenkins
             kubectl rollout status deployment hello-world
             """
           }
@@ -54,7 +54,7 @@ podTemplate(label: 'mypod', containers: [
         } else if (currentBuild.result == 'FAILURE') {
           echo 'I failed :('
           slackSend channel: 'stx_log',
-            color: 'RED',
+            color: '#c40e0e',
             message: "Attention @here ${env.JOB_NAME} #${env.BUILD_NUMBER} has failed."
         }
       }
