@@ -17,7 +17,6 @@ podTemplate(label: 'mypod', containers: [
               returnStdout: true
             ).trim()
           }
-          echo "docker: ${DOCKER_LOGIN}"
           container('docker') {
             REGISTRY_URL="744004065806.dkr.ecr.ap-southeast-1.amazonaws.com/dev-bidding-service"
             sh """
@@ -31,39 +30,33 @@ podTemplate(label: 'mypod', containers: [
         }
         stage('test kubectl') {
           container('kubectl') {
-            sh "kubectl apply -f deploy.yml"
-            sh "kubectl rollout status deployment hello-world"
+            sh """
+            kubectl apply -f deploy.yml
+            kubectl patch deployment hello-world -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"date\":\"`date +'%s'`\"}}}}}" -n jenkins
+            kubectl rollout status deployment hello-world
+            """
           }
         }
+        currentBuild.result = 'SUCCESS'
       } catch (exc) {
+        currentBuild.result = 'FAILURE'
         echo 'I failed'
         echo exc.getMessage()
       }
       finally {
         echo 'One way or another, I have finished'
         deleteDir() /* clean up our workspace */
-        if (currentBuild.currentResult == 'SUCCESS') {
+        if (currentBuild.result == 'SUCCESS') {
           echo 'Build successful'
           slackSend channel: 'stx_log',
             color: 'good',
             message: "The pipeline ${currentBuild.fullDisplayName} completed successfully."
-        } else if (currentBuild.currentResult == 'FAILURE') {
+        } else if (currentBuild.result == 'FAILURE') {
           echo 'I failed :('
           slackSend channel: 'stx_log',
-            color: 'good',
+            color: 'RED',
             message: "Attention @here ${env.JOB_NAME} #${env.BUILD_NUMBER} has failed."
         }
-        // success {
-        //   slackSend channel: 'stx_log',
-        //     color: 'good',
-        //     message: "The pipeline ${currentBuild.fullDisplayName} completed successfully."
-        // }
-        // failure {
-        //   echo 'I failed :('
-        //   slackSend channel: 'stx_log',
-        //     color: 'good',
-        //     message: "Attention @here ${env.JOB_NAME} #${env.BUILD_NUMBER} has failed."
-        // }
       }
     }
   }
